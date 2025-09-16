@@ -12,17 +12,18 @@ let mediaRecorder;
 let recordedChunks = [];
 let stream;
 let timerInterval;
-let timeLeft = 120; // 2 минуты в секундах
+let totalSeconds = 0;
+let questionTimestamps = [];
 
 // DOM элементы
 const videoElement = document.getElementById('preview');
 const currentQuestionElement = document.getElementById('current-question');
 const timerElement = document.getElementById('timer');
 const startInterviewButton = document.getElementById('start-interview');
-const startRecordingButton = document.getElementById('start-recording');
-const stopRecordingButton = document.getElementById('stop-recording');
 const nextQuestionButton = document.getElementById('next-question');
-const recordingsContainer = document.getElementById('recordings');
+const finishInterviewButton = document.getElementById('finish-interview');
+const finalRecordingSection = document.getElementById('final-recording');
+const recordingPlayerDiv = document.getElementById('recording-player');
 
 // Запрос доступа к камере и микрофону
 async function initCamera() {
@@ -35,10 +36,11 @@ async function initCamera() {
             audio: true
         });
         videoElement.srcObject = stream;
-        startRecordingButton.disabled = false;
+        return true;
     } catch (err) {
         alert('Ошибка доступа к камере: ' + err.message);
         console.error('Error accessing media devices:', err);
+        return false;
     }
 }
 
@@ -51,134 +53,148 @@ function formatTime(seconds) {
 
 // Запуск таймера
 function startTimer() {
-    timeLeft = 120; // 2 минуты
-    timerElement.textContent = formatTime(timeLeft);
+    totalSeconds = 0;
+    timerElement.textContent = formatTime(totalSeconds);
     
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-        timeLeft--;
-        timerElement.textContent = formatTime(timeLeft);
-        
-        if (timeLeft <= 0) {
-            stopRecording();
-        }
+        totalSeconds++;
+        timerElement.textContent = formatTime(totalSeconds);
     }, 1000);
 }
 
-// Запуск записи
-function startRecording() {
-    recordedChunks = [];
-    
-    const options = {
-        mimeType: 'video/webm;codecs=vp9,opus'
-    };
-    
-    try {
-        mediaRecorder = new MediaRecorder(stream, options);
-    } catch (e) {
-        console.error('MediaRecorder error:', e);
-        try {
-            // Fallback для Safari
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4' });
-        } catch (e) {
-            console.error('MediaRecorder fallback error:', e);
-            alert('Ваш браузер не поддерживает запись видео');
-            return;
-        }
-    }
-    
-    mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-            recordedChunks.push(e.data);
-        }
-    };
-    
-    mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        saveRecording(blob);
-    };
-    
-    // Обновление UI
-    startRecordingButton.disabled = true;
-    stopRecordingButton.disabled = false;
-    nextQuestionButton.disabled = true;
-    
-    // Запуск таймера
-    startTimer();
-    
-    mediaRecorder.start();
-}
-
-// Остановка записи
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        clearInterval(timerInterval);
+// Запуск интервью и записи
+async function startInterview() {
+    if (await initCamera()) {
+        recordedChunks = [];
+        questionTimestamps = [];
         
-        // Обновление UI
-        startRecordingButton.disabled = false;
-        stopRecordingButton.disabled = true;
+        // Настройка MediaRecorder
+        const options = {
+            mimeType: 'video/webm;codecs=vp9,opus'
+        };
+        
+        try {
+            mediaRecorder = new MediaRecorder(stream, options);
+        } catch (e) {
+            console.error('MediaRecorder error:', e);
+            try {
+                // Fallback для Safari
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4' });
+            } catch (e) {
+                console.error('MediaRecorder fallback error:', e);
+                alert('Ваш браузер не поддерживает запись видео');
+                return;
+            }
+        }
+        
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
+        };
+        
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            createFinalRecording(blob);
+        };
+        
+        // Обновление интерфейса
+        startInterviewButton.disabled = true;
         nextQuestionButton.disabled = false;
+        finishInterviewButton.disabled = false;
+        
+        // Начинаем первый вопрос
+        nextQuestion();
+        
+        // Запуск таймера и записи
+        startTimer();
+        mediaRecorder.start();
     }
-}
-
-// Сохранение записи (создание плеера и возможности скачивания)
-function saveRecording(blob) {
-    const recordingItem = document.createElement('div');
-    recordingItem.className = 'recording-item';
-    
-    const questionText = document.createElement('h4');
-    questionText.textContent = `Вопрос ${currentQuestionIndex + 1}: ${questions[currentQuestionIndex]}`;
-    
-    const videoPlayer = document.createElement('video');
-    videoPlayer.controls = true;
-    videoPlayer.style.width = '100%';
-    videoPlayer.style.marginBottom = '10px';
-    
-    const downloadLink = document.createElement('a');
-    downloadLink.href = URL.createObjectURL(blob);
-    downloadLink.download = `question_${currentQuestionIndex + 1}.webm`;
-    downloadLink.textContent = 'Скачать запись';
-    downloadLink.className = 'btn primary';
-    
-    // Отображение видео
-    videoPlayer.src = downloadLink.href;
-    
-    recordingItem.appendChild(questionText);
-    recordingItem.appendChild(videoPlayer);
-    recordingItem.appendChild(downloadLink);
-    
-    recordingsContainer.appendChild(recordingItem);
-    
-    // В реальном проекте здесь был бы код для загрузки на сервер
-    console.log('Запись создана, размер:', blob.size);
 }
 
 // Переход к следующему вопросу
 function nextQuestion() {
     currentQuestionIndex++;
     
+    // Сохраняем метку времени для вопроса
+    questionTimestamps.push({
+        questionIndex: currentQuestionIndex,
+        timeSeconds: totalSeconds,
+        question: currentQuestionIndex < questions.length ? questions[currentQuestionIndex] : "Завершение интервью"
+    });
+    
     if (currentQuestionIndex < questions.length) {
         currentQuestionElement.textContent = questions[currentQuestionIndex];
-        startRecordingButton.disabled = false;
-        stopRecordingButton.disabled = true;
-        nextQuestionButton.disabled = true;
     } else {
-        // Завершение интервью
-        currentQuestionElement.textContent = 'Интервью завершено! Спасибо за ваши ответы.';
-        startRecordingButton.disabled = true;
-        stopRecordingButton.disabled = true;
-        nextQuestionButton.disabled = true;
+        // Завершение интервью, если закончились вопросы
+        finishInterview();
     }
 }
 
-// Обработчики событий
-startInterviewButton.addEventListener('click', () => {
-    initCamera();
-    startInterviewButton.disabled = true;
-    nextQuestion();
-});
+// Завершение интервью
+function finishInterview() {
+    // Остановка записи
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        clearInterval(timerInterval);
+    }
+    
+    // Обновление UI
+    currentQuestionElement.textContent = 'Интервью завершено! Спасибо за ваши ответы.';
+    startInterviewButton.disabled = false;
+    nextQuestionButton.disabled = true;
+    finishInterviewButton.disabled = true;
+}
 
-startRecordingButton.addEventListener('click', startRecording);
-stopRecordingButton.addEventListener('click', stopRecording);
+// Создание итоговой записи
+function createFinalRecording(blob) {
+    // Очистка предыдущих записей
+    recordingPlayerDiv.innerHTML = '';
+    
+    // Создание видеоплеера
+    const videoPlayer = document.createElement('video');
+    videoPlayer.controls = true;
+    videoPlayer.style.width = '100%';
+    videoPlayer.style.marginBottom = '10px';
+    
+    // Создание ссылки для скачивания
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.download = 'interview.webm';
+    downloadLink.textContent = 'Скачать запись интервью';
+    downloadLink.className = 'btn primary';
+    
+    // Отображение видео
+    videoPlayer.src = downloadLink.href;
+    
+    // Создание информации о вопросах и таймкодах
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'recording-info';
+    
+    let infoContent = '<strong>Временные метки вопросов:</strong><ul>';
+    questionTimestamps.forEach((item, index) => {
+        if (index < questions.length) { // Не включаем последнюю метку завершения
+            infoContent += `<li><strong>${formatTime(item.timeSeconds)}</strong> - ${item.question}</li>`;
+        }
+    });
+    infoContent += '</ul>';
+    
+    infoDiv.innerHTML = infoContent;
+    
+    // Добавляем элементы на страницу
+    recordingPlayerDiv.appendChild(videoPlayer);
+    recordingPlayerDiv.appendChild(downloadLink);
+    recordingPlayerDiv.appendChild(infoDiv);
+    
+    // Показываем секцию с записью
+    finalRecordingSection.classList.remove('hidden');
+    
+    // Прокручиваем страницу к записи
+    finalRecordingSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Обработчики событий
+startInterviewButton.addEventListener('click', startInterview);
 nextQuestionButton.addEventListener('click', nextQuestion);
+finishInterviewButton.addEventListener('click', finishInterview);
