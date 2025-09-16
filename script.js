@@ -1,3 +1,22 @@
+// Проверка на существование элемента
+function getElement(id) {
+  const element = document.getElementById(id);
+  if (!element) {
+    console.error(`Элемент с ID '${id}' не найден`);
+    return {
+      addEventListener: () => {},
+      disabled: false,
+      textContent: '',
+      classList: { add: () => {}, remove: () => {} },
+      style: {},
+      src: '',
+      srcObject: null,
+      innerHTML: ''
+    };
+  }
+  return element;
+}
+
 // Вопросы для интервью
 const questions = [
     "Расскажите о вашем опыте работы в продажах",
@@ -16,23 +35,25 @@ let totalSeconds = 0;
 let questionTimestamps = [];
 
 // DOM элементы
-const videoElement = document.getElementById('preview');
-const currentQuestionElement = document.getElementById('current-question');
-const timerElement = document.getElementById('timer');
-const startInterviewButton = document.getElementById('start-interview');
-const nextQuestionButton = document.getElementById('next-question');
-const finishInterviewButton = document.getElementById('finish-interview');
-const finalRecordingSection = document.getElementById('final-recording');
-const recordingPlayerDiv = document.getElementById('recording-player');
+const videoElement = getElement('preview');
+const currentQuestionElement = getElement('current-question');
+const timerElement = getElement('timer');
+const startInterviewButton = getElement('start-interview');
+const nextQuestionButton = getElement('next-question');
+const finishInterviewButton = getElement('finish-interview');
+const finalRecordingSection = getElement('final-recording');
+const recordingPlayerDiv = getElement('recording-player');
+
+// Проверяем, есть ли доступ к navigator.mediaDevices
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.error('Ваш браузер не поддерживает запись медиа через WebRTC');
+}
 
 // Запрос доступа к камере и микрофону
 async function initCamera() {
     try {
         stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
+            video: true, // Упрощаем для повышения совместимости
             audio: true
         });
         videoElement.srcObject = stream;
@@ -70,33 +91,39 @@ async function startInterview() {
         questionTimestamps = [];
         
         // Настройка MediaRecorder
-        const options = {
-            mimeType: 'video/webm;codecs=vp9,opus'
-        };
-        
+        let options = {};
         try {
-            mediaRecorder = new MediaRecorder(stream, options);
-        } catch (e) {
-            console.error('MediaRecorder error:', e);
+            // Пробуем с кодеком
+            mediaRecorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp8,opus'});
+        } catch (e1) {
             try {
-                // Fallback для Safari
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/mp4' });
-            } catch (e) {
-                console.error('MediaRecorder fallback error:', e);
-                alert('Ваш браузер не поддерживает запись видео');
-                return;
+                // Пробуем без кодека
+                mediaRecorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
+            } catch (e2) {
+                try {
+                    // Пробуем вообще без опций
+                    mediaRecorder = new MediaRecorder(stream);
+                } catch (e3) {
+                    alert('Ваш браузер не поддерживает запись видео');
+                    console.error('MediaRecorder errors:', e1, e2, e3);
+                    return;
+                }
             }
         }
         
         mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
+            if (e.data && e.data.size > 0) {
                 recordedChunks.push(e.data);
             }
         };
         
         mediaRecorder.onstop = () => {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            createFinalRecording(blob);
+            if (recordedChunks.length > 0) {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                createFinalRecording(blob);
+            } else {
+                alert('Запись не содержит данных. Попробуйте другой браузер.');
+            }
         };
         
         // Обновление интерфейса
@@ -109,7 +136,7 @@ async function startInterview() {
         
         // Запуск таймера и записи
         startTimer();
-        mediaRecorder.start();
+        mediaRecorder.start(1000); // Получаем данные каждую секунду
     }
 }
 
@@ -189,9 +216,6 @@ function createFinalRecording(blob) {
     
     // Показываем секцию с записью
     finalRecordingSection.classList.remove('hidden');
-    
-    // Прокручиваем страницу к записи
-    finalRecordingSection.scrollIntoView({ behavior: 'smooth' });
 }
 
 // Обработчики событий
