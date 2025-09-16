@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простая запись видео | WebRTC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Система видеоинтервью</h1>
+        
+        <div class="question-container">
+            <h2 id="current-question">Нажмите "Начать интервью" для старта</h2>
+            <div id="timer">02:00</div>
+        </div>
+        
+        <div class="video-container">
+            <video id="preview" autoplay muted></video>
+        </div>
+        
+        <div class="controls">
+            <button id="start-interview" class="btn primary">Начать интервью</button>
+            <button id="start-recording" class="btn success" disabled>Начать запись</button>
+            <button id="stop-recording" class="btn danger" disabled>Завершить запись</button>
+            <button id="next-question" class="btn primary" disabled>Следующий вопрос</button>
+        </div>
+        
+        <div class="recordings" id="recordings">
+            <h3>Записанные ответы:</h3>
+            <!-- Записи будут добавляться здесь -->
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
