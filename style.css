@@ -1,4 +1,116 @@
-/* Добавьте в конец существующего файла style.css */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.question-container {
+    background-color: #e9f7fe;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#timer {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0056b3;
+    background: #fff;
+    padding: 5px 15px;
+    border-radius: 20px;
+    min-width: 80px;
+    text-align: center;
+}
+
+.video-container {
+    background-color: #000;
+    height: 360px;
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    flex-grow: 1;
+    min-width: 120px;
+}
+
+.primary {
+    background-color: #0275d8;
+    color: white;
+}
+
+.success {
+    background-color: #5cb85c;
+    color: white;
+}
+
+.danger {
+    background-color: #d9534f;
+    color: white;
+}
+
+.btn:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+}
+
+.recordings {
+    margin-top: 30px;
+}
+
+.recording-item {
+    margin: 10px 0;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.recording-item h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
 .hidden {
     display: none;
 }
@@ -18,11 +130,6 @@
 
 #recording-player {
     margin-top: 15px;
-}
-
-#timer {
-    min-width: 80px;
-    text-align: center;
 }
 
 .recording-info {
